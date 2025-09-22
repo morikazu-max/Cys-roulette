@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0a0a0a"/>
 <style>
   :root{
-    --theme:blue; /* 選択肢反映ボタン用 */
+    --theme:blue;
     --mono1:#0a0a0a;
     --mono2:#ffffff;
     --shadow:0 10px 30px rgba(0,0,0,.35);
@@ -46,13 +46,13 @@
     display:flex;
     flex-direction:column;
     gap:12px;
-    flex:1;                 /* ヘッダー以外の残り高さを占有 */
+    flex:1;
   }
   textarea{
     width:100%;
-    min-height:0;           /* flex 子要素の計算を安定化 */
-    flex:1;                 /* 残り縦スペースをすべて使う */
-    resize:vertical;        /* 好みで none にしてもOK */
+    min-height:0;
+    flex:1;
+    resize:vertical;
     padding:12px;
     color:var(--mono2);
     background:rgba(255,255,255,.06);
@@ -81,15 +81,15 @@
 
   .pointer {
   position:absolute;
-  top:-6px;               /* 下端に配置 */
+  top:-6px;
   left:50%;
   transform:translateX(-50%);
   width:0;
   height:0;
   border-left:10px solid transparent;
   border-right:10px solid transparent;
-  border-top:18px solid #fff; /* 下向きの三角形 */
-  filter:drop-shadow(0 -2px 4px rgba(0,0,0,.5)); /* 影も下向きに */
+  border-top:18px solid #fff;
+  filter:drop-shadow(0 -2px 4px rgba(0,0,0,.5));
 }
 
 
@@ -104,7 +104,6 @@
     .stage{order:-1}
   }
 
-  /* ===== Winner Modal ===== */
   #winnerModal{
     position:fixed; inset:0; display:grid; place-items:center;
     background:rgba(0,0,0,.45);
@@ -137,7 +136,6 @@
     text-shadow:0 4px 20px rgba(0,0,0,.35);
   }
 
-  /* 残してても害はないが参照はしない */
   #result { display: none; }
 
   @keyframes winnerPop{
@@ -174,7 +172,6 @@
     </section>
   </div>
 
-  <!-- Winner Modal -->
   <div id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerText">
     <div class="winner-card" tabindex="-1">
       <div id="winnerText" class="winner-title">結果</div>
@@ -199,7 +196,6 @@
         rightArea: document.querySelector('.right')
       };
     
-      // ---------- Utils ----------
       const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
       const getDurationSec = () =>
         (els.duration && Number.isFinite(els.duration.valueAsNumber))
@@ -208,8 +204,6 @@
       const storeKey = 'roulette.casino.items.v1';
       const state = { items: [], angle: 0, spinning: false, forcedIndex: null };
     
-      // 行頭番号を除去してプレーンな配列に
-      // 例: "1. 寿司" / "[1] 寿司" / "1) 寿司" / "1 - 寿司"
       const stripLeadNum = s => s.replace(/^\s*(?:\[(\d+)\]|(\d+)[\.\)\-:])\s*/u, '');
       const clamp30 = list => list.slice(0, 30);
       const clean = s => (s||'')
@@ -217,13 +211,12 @@
         .split('\n')
         .map(v => v.trim())
         .filter(Boolean)
-        .map(v => stripLeadNum(v))          // 先頭の番号は読み取り時に無視
+        .map(v => stripLeadNum(v))
         .filter(Boolean);
     
       const rand = n => Math.floor(Math.random() * n);
       const numbered = list => list.map((v,i)=>`[${i+1}] ${v}`).join('\n');
     
-      // ---------- Winner modal ----------
       function showWinner(idx){
         if (!els.winnerModal || !els.winnerText) return;
         const name = state.items[idx] ?? '';
@@ -236,7 +229,6 @@
       on(els.winnerModal, 'click', hideWinner);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') hideWinner(); });
     
-      // ---------- Persistence ----------
       function saveItems(){ try{ localStorage.setItem(storeKey, JSON.stringify(state.items)); }catch(_){} }
       function loadItems(){
         try{
@@ -245,7 +237,6 @@
         }catch(_){}
       }
     
-      // ---------- Build wheel (ラベルは番号のみ) ----------
       function buildWheel(){
         const g = els.segments;
         if (!g) return;
@@ -268,10 +259,9 @@
           const seg = document.createElementNS('http://www.w3.org/2000/svg','path');
           seg.setAttribute('d', path);
     
-          // Casino-ish coloring
           if(n === 37 || n === 38){
-            if(i === 0 || (n === 38 && i === n-1)) seg.setAttribute('fill','#2ecc71'); // green
-            else seg.setAttribute('fill', i % 2 === 0 ? '#e63946' : '#000000');         // red/black
+            if(i === 0 || (n === 38 && i === n-1)) seg.setAttribute('fill','#2ecc71');
+            else seg.setAttribute('fill', i % 2 === 0 ? '#e63946' : '#000000');
           }else{
             seg.setAttribute('fill', i % 2 === 0 ? '#e63946' : '#000000');
           }
@@ -279,31 +269,33 @@
           seg.setAttribute('stroke-width','0.5');
           g.appendChild(seg);
     
-          // ラベル: インデックス番号のみ
-          const mid = start + sweep/2;
-          const rx = 32*Math.cos(toRad(mid)), ry = 32*Math.sin(toRad(mid));
-          const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-          text.setAttribute('x', rx.toFixed(2));
-          text.setAttribute('y', ry.toFixed(2));
-          text.setAttribute('fill','#ffffff');
-          text.setAttribute('font-size','4'); // 数字だけなので少し大きめでもはみ出さない
-          text.setAttribute('text-anchor','middle');
-          text.setAttribute('dominant-baseline','middle');
-          text.textContent = String(i+1);
-          g.appendChild(text);
+const mid = start + sweep/2;
+const rx = 32*Math.cos(toRad(mid)), ry = 32*Math.sin(toRad(mid));
+const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+text.setAttribute('x', rx.toFixed(2));
+text.setAttribute('y', ry.toFixed(2));
+text.setAttribute('fill','#ffffff');
+text.setAttribute('font-size','4');
+text.setAttribute('text-anchor','middle');
+text.setAttribute('dominant-baseline','middle');
+text.setAttribute('transform',
+  `rotate(${(mid - 270).toFixed(3)}, ${rx.toFixed(2)}, ${ry.toFixed(2)})`
+);
+text.textContent = String(i+1);
+g.appendChild(text);
+
+
         }
       }
     
-      // ---------- Click-region rigging ----------
       function setForcedIndexByClick(event, basisEl){
         const n = state.items.length;
         if(!n || !basisEl) return;
     
         const rect = basisEl.getBoundingClientRect();
-        const x = (event.clientX - rect.left) / rect.width;   // 0..1
-        const y = (event.clientY - rect.top)  / rect.height;  // 0..1
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top)  / rect.height;
     
-        // 左上=最初, 右上=真ん中, 右下=最後, その他=ランダム
         if (x < 0.5 && y < 0.5) {
           state.forcedIndex = 0;
         } else if (x >= 0.5 && y < 0.5) {
@@ -324,27 +316,22 @@
         return rand(state.items.length);
       }
     
-      // ---------- Reliable rotation ----------
       function applyRotation(finalAngleDeg, durationSec){
         const el = els.wheel;
         if (!el) return;
     
-        // normalize current angle to 0..360 and freeze
         const normalized = ((state.angle % 360) + 360) % 360;
         el.style.transition = 'none';
         el.style.transform  = `rotate(${normalized}deg)`;
     
-        // force reflow
         void el.offsetWidth;
     
-        // animate to final
         el.style.transition = `transform ${durationSec}s cubic-bezier(.17,.84,.44,1)`;
         el.style.transform  = `rotate(${finalAngleDeg}deg)`;
     
         if (els.durLabel) els.durLabel.textContent = `${durationSec.toFixed(1)}s`;
       }
     
-      // ---------- Spin ----------
       function spin(){
         if(state.spinning || !state.items.length) return;
         state.spinning = true;
@@ -353,16 +340,12 @@
         const n = state.items.length;
         const sweep = 360 / n;
     
-        // target sector center angle from top (0° is up)
         const targetFromTop = idx * sweep + sweep/2;
     
-        // number of full spins (5-8)
         const spins = 5 + Math.floor(Math.random()*4);
     
-        // current angle modulo 360
         const currentTop = ((state.angle % 360) + 360) % 360;
     
-        // delta to align target
         const deltaToTarget = (360 - targetFromTop - currentTop);
         const deltaNorm = ((deltaToTarget % 360) + 360) % 360;
     
@@ -381,7 +364,6 @@
         els.wheel.addEventListener('transitionend', onEnd, { once:true });
       }
     
-      // ---------- Reflect textarea ----------
       function reflectTextArea(){
         const list = clamp30(clean(els.items && els.items.value));
         state.items = list;
@@ -389,11 +371,9 @@
         buildWheel();
         saveItems();
     
-        // 入力欄でインデックスを確認できるよう、番号付きで再描画（編集OK）
         if (els.items) els.items.value = numbered(state.items);
       }
     
-      // ---------- Events ----------
       on(els.apply, 'click', reflectTextArea);
       on(els.clear, 'click', () => {
         if(!els.items) return;
@@ -401,14 +381,12 @@
         reflectTextArea();
       });
     
-      // 右側の領域をクリックしたら回転（UI変更なし、JSのみ）
       on(els.rightArea, 'click', (e) => {
         if (els.winnerModal && els.winnerModal.classList.contains('show')) return;
         setForcedIndexByClick(e, els.rightArea);
         spin();
       });
     
-      // 既存のボタンでも回せる（残したまま）
       on(els.spin, 'click', (e) => {
         setForcedIndexByClick(e, els.spin || els.rightArea || document.body);
         spin();
@@ -419,12 +397,10 @@
         if (els.durLabel && Number.isFinite(v)) els.durLabel.textContent = `${v.toFixed(1)}s`;
       });
     
-      // ---------- Init ----------
       loadItems();
       if(!state.items.length){
         state.items = ['焼肉','寿司','ラーメン','カレー','鍋','ピザ','パスタ','蕎麦'];
       }
-      // 初期表示時から番号つきで見せる
       if (els.items) els.items.value = numbered(state.items);
       if (els.count) els.count.textContent = String(state.items.length);
       buildWheel();
