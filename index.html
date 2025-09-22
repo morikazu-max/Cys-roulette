@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Roulette • Casino Style</title>
+<meta name="theme-color" content="#0a0a0a"/>
+<style>
+  :root{
+    --theme:blue; /* 選択肢反映ボタン用 */
+    --mono1:#0a0a0a;
+    --mono2:#ffffff;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    background: var(--mono1);
+    color:var(--mono2);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wrap{
+    display:grid; grid-template-columns: 1.1fr 1fr; gap:120px;
+    height:100%;  width:100%; padding:24px;
+  }
+  .card{
+    background:linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.05));
+    border:1px solid rgba(255,255,255,.2);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.12);
+  }
+  h1{font-size:16px; letter-spacing:.2px; margin:0; color:var(--mono2)}
+  .badge{font-size:12px; color:rgba(255,255,255,.6)}
+
+  .left{display:flex; flex-direction:column; flex:1;}
+  .editor{
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    flex:1;                 /* ヘッダー以外の残り高さを占有 */
+  }
+  textarea{
+    width:100%;
+    min-height:0;           /* flex 子要素の計算を安定化 */
+    flex:1;                 /* 残り縦スペースをすべて使う */
+    resize:vertical;        /* 好みで none にしてもOK */
+    padding:12px;
+    color:var(--mono2);
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:10px; outline:none;
+  }
+  button{
+    appearance:none; border:0; padding:10px 70px; border-radius:12px; cursor:pointer;
+    background:var(--theme); color:white; font-weight:700; border:1px solid blue
+  }
+  button.ghost{background:blue; color:var(--mono2); border:1px solid rgba(255,255,255,.2)}
+
+  .right{display:flex; flex-direction:column}
+  .stage{flex:1; display:grid; place-items:center; }
+  .wheel-box {
+    position:relative;
+    width:min(80vh, 640px);
+    aspect-ratio:1/1;
+    display:grid;
+    place-items:center;
+    border:12px solid #5a2d0c;
+    border-radius:50%;
+    background:#2a2a2a;
+    box-shadow:inset 0 0 20px rgba(0,0,0,.8), 0 0 20px rgba(0,0,0,.6);
+  }
+
+  .pointer{position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:18px solid #fff;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+
+  svg{width:100%; height:100%; border-radius:50%;}
+  .center-dot{fill:#d4af37}
+
+  .controls{position:relative; display:flex; align-items:center; justify-content:center; gap:12px; padding-top:10px}
+  .readout{color:rgba(255,255,255,.6)}
+
+  @media (max-width: 980px){
+    .wrap{grid-template-columns:1fr;}
+    .stage{order:-1}
+  }
+
+  /* ===== Winner Modal ===== */
+  #winnerModal{
+    position:fixed; inset:0; display:grid; place-items:center;
+    background:rgba(0,0,0,.45);
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    opacity:0; pointer-events:none; transition:opacity .18s ease-out;
+    z-index:999;
+  }
+  #winnerModal.show{ opacity:1; pointer-events:auto; }
+
+  .winner-card{
+    margin:24px;
+    background:linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
+    border:1px solid rgba(255,255,255,.22);
+    border-radius:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    padding:50px 90px;
+    text-align:center;
+    transform:scale(.96);
+    animation:winnerPop .22s cubic-bezier(.2,.8,.2,1) both;
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+  }
+  .winner-title{
+    font-size: clamp(28px, 6.5vw, 64px);
+    line-height:1.1;
+    font-weight:900;
+    letter-spacing:.02em;
+    color:var(--mono2);
+    text-shadow:0 4px 20px rgba(0,0,0,.35);
+  }
+
+  /* 残してても害はないが参照はしない */
+  #result { display: none; }
+
+  @keyframes winnerPop{
+    from{ transform:scale(.92); opacity:.0 }
+    to  { transform:scale(1);   opacity:1  }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="card left">
+      <header>
+        <h1>🔥 選択肢を入力してください 🔥</h1>
+        <span class="badge"><span id="count">0</span> / 30</span>
+      </header>
+      <div class="editor">
+        <textarea id="items" placeholder="例\n焼肉\n寿司\nラーメン\n…" maxlength="2000"></textarea>
+        <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+          <button id="apply">✅ 反映する ✅</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="stage">
+        <div class="wheel-box">
+          <div class="pointer"></div>
+          <svg viewBox="-52 -52 104 104" id="wheel">
+            <g id="segments" transform="rotate(-90)"></g>
+            <circle class="center-dot" r="3"></circle>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Winner Modal -->
+  <div id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerText">
+    <div class="winner-card" tabindex="-1">
+      <div id="winnerText" class="winner-title">結果</div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const $ = (q, el=document) => el.querySelector(q);
+      const els = {
+        items: $('#items'),
+        apply: $('#apply'),
+        clear: $('#clear'),
+        count: $('#count'),
+        segments: $('#segments'),
+        spin: $('#spin'),
+        duration: $('#duration'),
+        durLabel: $('#durLabel') || $('#dur'),
+        wheel: $('#wheel'),
+        winnerModal: $('#winnerModal'),
+        winnerText: $('#winnerText'),
+        rightArea: document.querySelector('.right')
+      };
+    
+      // ---------- Utils ----------
+      const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+      const getDurationSec = () =>
+        (els.duration && Number.isFinite(els.duration.valueAsNumber))
+          ? els.duration.valueAsNumber : 3;
+    
+      const storeKey = 'roulette.casino.items.v1';
+      const state = { items: [], angle: 0, spinning: false, forcedIndex: null };
+      const clamp30 = list => list.slice(0, 30);
+      const clean = s => (s||'').replace(/[\t\r]+/g, '')
+        .split('\n').map(v => v.trim()).filter(Boolean);
+      const rand = n => Math.floor(Math.random() * n);
+    
+      // ---------- Winner modal ----------
+      function showWinner(name){
+        if (els.winnerText) els.winnerText.textContent = name;
+        if (els.winnerModal){
+          els.winnerModal.classList.add('show');
+          const card = els.winnerModal.querySelector('.winner-card');
+          if (card) card.focus();
+        }
+      }
+      function hideWinner(){ if (els.winnerModal) els.winnerModal.classList.remove('show'); }
+      on(els.winnerModal, 'click', hideWinner);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') hideWinner(); });
+    
+      // ---------- Persistence ----------
+      function saveItems(){ try{ localStorage.setItem(storeKey, JSON.stringify(state.items)); }catch(_){} }
+      function loadItems(){
+        try{
+          const raw = localStorage.getItem(storeKey);
+          if(raw) state.items = JSON.parse(raw) || [];
+        }catch(_){}
+      }
+    
+      // ---------- Build wheel ----------
+      function buildWheel(){
+        const g = els.segments;
+        if (!g) return;
+        g.innerHTML = '';
+    
+        const n = state.items.length;
+        if(!n) return;
+    
+        const sweep = 360 / n;
+        const r = 48;
+        const toRad = d => Math.PI * d / 180;
+    
+        for(let i=0;i<n;i++){
+          const start = i*sweep, end = start+sweep;
+          const x1 = r*Math.cos(toRad(start)), y1 = r*Math.sin(toRad(start));
+          const x2 = r*Math.cos(toRad(end)),   y2 = r*Math.sin(toRad(end));
+          const large = sweep > 180 ? 1 : 0;
+    
+          const path = `M 0 0 L ${x1.toFixed(3)} ${y1.toFixed(3)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z`;
+          const seg = document.createElementNS('http://www.w3.org/2000/svg','path');
+          seg.setAttribute('d', path);
+    
+          // Casino-ish coloring
+          if(n === 37 || n === 38){
+            if(i === 0 || (n === 38 && i === n-1)) seg.setAttribute('fill','#2ecc71'); // green
+            else seg.setAttribute('fill', i % 2 === 0 ? '#e63946' : '#000000');         // red/black
+          }else{
+            seg.setAttribute('fill', i % 2 === 0 ? '#e63946' : '#000000');
+          }
+          seg.setAttribute('stroke','#ffffff');
+          seg.setAttribute('stroke-width','0.5');
+          g.appendChild(seg);
+    
+          // Labels
+          const mid = start + sweep/2;
+          const rx = 32*Math.cos(toRad(mid)), ry = 32*Math.sin(toRad(mid));
+          const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+          text.setAttribute('x', rx.toFixed(2));
+          text.setAttribute('y', ry.toFixed(2));
+          text.setAttribute('fill','#ffffff');
+          text.setAttribute('font-size','3');
+          text.setAttribute('text-anchor','middle');
+          text.setAttribute('dominant-baseline','middle');
+          text.textContent = state.items[i].slice(0,10);
+          g.appendChild(text);
+        }
+      }
+    
+      // ---------- Click-region rigging ----------
+      function setForcedIndexByClick(event, basisEl){
+        const n = state.items.length;
+        if(!n || !basisEl) return;
+    
+        const rect = basisEl.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;   // 0..1
+        const y = (event.clientY - rect.top)  / rect.height;  // 0..1
+    
+        // 左上=最初, 右上=真ん中, 右下=最後, その他=ランダム
+        if (x < 0.5 && y < 0.5) {
+          state.forcedIndex = 0;
+        } else if (x >= 0.5 && y < 0.5) {
+          state.forcedIndex = Math.floor(n/2);
+        } else if (x >= 0.5 && y >= 0.5) {
+          state.forcedIndex = n - 1;
+        } else {
+          state.forcedIndex = rand(n);
+        }
+      }
+    
+      function pickIndex(){
+        if(state.forcedIndex !== null){
+          const idx = state.forcedIndex;
+          state.forcedIndex = null;
+          return idx;
+        }
+        return rand(state.items.length);
+      }
+    
+      // ---------- Reliable rotation ----------
+      function applyRotation(finalAngleDeg, durationSec){
+        const el = els.wheel;
+        if (!el) return;
+    
+        // normalize current angle to 0..360 and freeze
+        const normalized = ((state.angle % 360) + 360) % 360;
+        el.style.transition = 'none';
+        el.style.transform  = `rotate(${normalized}deg)`;
+    
+        // force reflow
+        void el.offsetWidth;
+    
+        // animate to final
+        el.style.transition = `transform ${durationSec}s cubic-bezier(.17,.84,.44,1)`;
+        el.style.transform  = `rotate(${finalAngleDeg}deg)`;
+    
+        if (els.durLabel) els.durLabel.textContent = `${durationSec.toFixed(1)}s`;
+      }
+    
+      // ---------- Spin ----------
+      function spin(){
+        if(state.spinning || !state.items.length) return;
+        state.spinning = true;
+    
+        const idx = pickIndex();
+        const n = state.items.length;
+        const sweep = 360 / n;
+    
+        // target sector center angle from top (0° is up)
+        const targetFromTop = idx * sweep + sweep/2;
+    
+        // number of full spins (5-8)
+        const spins = 5 + Math.floor(Math.random()*4);
+    
+        // current angle modulo 360
+        const currentTop = ((state.angle % 360) + 360) % 360;
+    
+        // delta to align target
+        const deltaToTarget = (360 - targetFromTop - currentTop);
+        const deltaNorm = ((deltaToTarget % 360) + 360) % 360;
+    
+        const finalDelta = spins*360 + deltaNorm;
+        const nextAngle = state.angle + finalDelta;
+        state.angle = nextAngle;
+    
+        const s = getDurationSec();
+        applyRotation(nextAngle, s);
+    
+        const onEnd = () => {
+          els.wheel.removeEventListener('transitionend', onEnd);
+          state.spinning = false;
+          const landed = state.items[idx];
+          showWinner(landed);
+        };
+        els.wheel.addEventListener('transitionend', onEnd, { once:true });
+      }
+    
+      // ---------- Reflect textarea ----------
+      function reflectTextArea(){
+        const list = clamp30(clean(els.items && els.items.value));
+        state.items = list;
+        if (els.count) els.count.textContent = String(list.length);
+        buildWheel();
+        saveItems();
+      }
+    
+      // ---------- Events ----------
+      on(els.apply, 'click', reflectTextArea);
+      on(els.clear, 'click', () => {
+        if(els.items){ els.items.value=''; reflectTextArea(); }
+      });
+    
+      // 右側の領域をクリックしたら回転（UIは変更せず、JSのみ）
+      on(els.rightArea, 'click', (e) => {
+        // 勝者モーダルが出ている時は誤発火させない
+        if (els.winnerModal && els.winnerModal.classList.contains('show')) return;
+    
+        // 右側領域基準で当て分け → 回転
+        setForcedIndexByClick(e, els.rightArea);
+        spin();
+      });
+    
+      // 既存の「ボタンで回す」も併用可能（残したまま）
+      on(els.spin, 'click', (e) => {
+        setForcedIndexByClick(e, els.spin || els.rightArea || document.body);
+        spin();
+      });
+    
+      on(els.duration, 'input', e => {
+        const v = Number(e.target.value);
+        if (els.durLabel && Number.isFinite(v)) els.durLabel.textContent = `${v.toFixed(1)}s`;
+      });
+    
+      // ---------- Init ----------
+      loadItems();
+      if (els.items) els.items.value = state.items.join('\n');
+      if (els.count) els.count.textContent = String(state.items.length);
+      buildWheel();
+      if(!state.items.length){
+        if (els.items) els.items.value = ['1','2','3','4','5','6','7','8'].join('\n');
+        reflectTextArea();
+      }
+    })();
+    </script>
+    
+    
+</body>
+</html>
